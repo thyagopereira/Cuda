@@ -47,7 +47,8 @@ int main(void){
     add<<<1,1>>>(d_a, d_b, d_c);
 
     //GPU -> CPU collecting results
-    cudaMemcpy(&c, d_c, size, cudaMemcpyDeviceToHost); 
+    cudaDeviceSynchronize(); // Aguarda a GPU acabar sua computaçãp 
+    cudaMemcpy(&c, d_c, size, cudaMemcpyDeviceToHost);  // já usa CudaDeviceSynchonize(), pq executa de forma sync
         // ALSO EXPANSIVE TOO MANY CLOCK CYCLES
 
     // Free memory from GPU
