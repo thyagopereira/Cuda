@@ -19,8 +19,8 @@ int main(){
     int size = N * sizeof(int);
 
     a = (int*)malloc(size);
-    b = (int*)malloc(size);
-    c = (int*)malloc(size);
+    b = (int*)malloc(size); //Espaço de memoriade um array
+    c = (int*)malloc(size); 
 
     cudaMalloc((void**)&d_a, size);
     cudaMalloc((void**)&d_b, size);
