@@ -14,7 +14,7 @@ const int M = 32 ; // Numero de colunas da matriz
 
 
 // R = M X N 
-__global__ void multiplica(float* m, float* n, float* r, int width) {
+__global__ void multiplica(float* ma, float* mb, float* mc, int width) {
 
 
     printf("CUDA IS RUNNING"); //  Nao printa pq ? --- tem tempo sleep(20);
@@ -28,11 +28,11 @@ __global__ void multiplica(float* m, float* n, float* r, int width) {
         float Pvalue = 0;
 
         for(int k = 0; k < width; k++){
-            Pvalue += m[row*width + k] * n[k*width+col];
+            Pvalue += ma[row*width + k] * mb[k*width+col];
         }
 
-        r[row*width + col] = Pvalue;
-        printf("%f \n", r[row*width + col]);
+        mc[row*width + col] = Pvalue;
+        printf("%f \n", mc[row*width + col]);
     }
 }
 
@@ -72,12 +72,11 @@ int main() {
     cudaDeviceSynchronize();
     cudaFree(dma); cudaFree(dmb); cudaFree(dmc);
 
-    // for(int i = 0; i < N; i++) {
-    //     for(int j = 0; j < M; j++){
-    //         printf("R[%d][%d] = %f \n", i,j, mc[i * M + j]);
-    //     }
-    // }
+    for(int i = 0; i < N; i++) {
+        for(int j = 0; j < M; j++){
+            printf("R[%d][%d] = %f \n", i,j, mc[i * M + j]);
+        }
+    }
     
-    sleep(20);
     return 0;
 }
