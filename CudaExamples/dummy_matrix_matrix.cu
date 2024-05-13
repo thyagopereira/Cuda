@@ -26,8 +26,10 @@ __global__ void multiplica(float* ma, float* mb, float* mc, int width) {
         for(int i = 0; i < N; i++){
             sum += ma[row * N + i] * mb[i * N + col];
         }
+
+        mc[row * N + col] = sum;
     }
-    mc[row * N + col] = sum;
+   
 }
 
 
