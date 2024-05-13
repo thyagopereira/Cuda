@@ -8,32 +8,26 @@
 // Lembre-se que o numero de threads, deve ser sempre uma constante multipla de 32
 // aredonda-da para cima via ceil, de modo a evitar indices não mapeados.
 
-
-// Usando sempre matriz quadradas para evitar mapear numero de colunas e de linhas 
-// de cada matriz. 
-const int N = 2 ;// Numero de linhas da matriz
-const int M = 2 ; // Numero de colunas da matriz
+const int N = 2 ;// Numero de linhas da matriz ; 
+// Numero de colunas da matriz
 
 
-// R = M X N 
+// R = A X B  
 __global__ void multiplica(float* ma, float* mb, float* mc, int width) {
 
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     
+    float sum = 0;
     // Isso torna possível trabalhar apenas matrizes quadradas N x N 
-    if(row < 2 && col < 2){
+    if(row < width && col < width){
         // Numero de colunas de Ma deve ser igual o numero de colunas de MB (4x4)
         // Multiplicação de vetores.
-        float value = 0;
-        for(int k = 0; k < width; k++){
-            value += ma[row * width + k] * mb[k * width + col];
+        for(int i = 0; i < N; i++){
+            sum += ma[row * N + i] * mb[i * N + col];
         }
-
-        printf("Value %f \n", value);
-        mc[row*width + col] = value;
-        printf("mc[%d] \n", row*width + col);
     }
+    mc[row * N + col] = sum;
 }
 
 
@@ -43,7 +37,7 @@ int main() {
     cudaDeviceReset();
     float *dma, *dmb, *dmc;
     float *ma, *mb, *mc;
-    int size = N * M * sizeof(float); // Size of a NxM matriz
+    int size = N * N * sizeof(float); // Size of a NxN matriz
 
 
     // Declarando matriz in memory do host -- Isso me permite setar valores nela  
@@ -58,30 +52,29 @@ int main() {
 
     // Preenchendo matriz com valores  
     for(int i = 0; i < N; i++) {
-        for(int j = 0; j < M; j++){
-            ma[i * M + j] = 2;
-            mb[i * M + j] = 2;
+        for(int j = 0; j < N; j++){
+            ma[i * N + j] = 2;
+            mb[i * N + j] = 2;
         }
     }
 
-    // printf("Inited matrix A \n");
-    // for(int i = 0; i < N; i++) {
-    //     for(int j = 0; j < M; j++){
-    //         printf("R[%d][%d] = %f \n", i,j, ma[i * M + j]);
-    //     }
-    // }
-
-    // printf("Inited matrix B \n");
-    // for(int i = 0; i < N; i++) {
-    //     for(int j = 0; j < M; j++){
-    //         printf("R[%d][%d] = %f \n", i,j, mb[i * M + j]);
-    //     }
-    // }
-
+    // Copy from host to device
     cudaMemcpy(dma, ma, size, cudaMemcpyHostToDevice);
     cudaMemcpy(dmb, mb, size, cudaMemcpyHostToDevice);
 
-    multiplica<<<2,2>>>(dma, dmb, dmc, N*M);
+
+    // Setando dimensões do grid. 
+    dim3 threadsPerBlock(N,N);
+    dim3 blocksPerGrid(1, 1);
+    if (N*N > 512){
+        threadsPerBlock.x = 512; 
+        threadsPerBlock.y = 512; 
+        blocksPerGrid.x = ceil(double(N)/double(threadsPerBlock.x));
+        blocksPerGrid.y = ceil(double(N)/double(threadsPerBlock.y));
+    }
+
+
+    multiplica<<<blocksPerGrid, threadsPerBlock>>>(dma, dmb, dmc, N);
     cudaDeviceSynchronize(); // Always before cudaMemcpy  device -> host (u can get crap if not this way)
     cudaMemcpy(mc, dmc, size, cudaMemcpyDeviceToHost);
     
@@ -99,10 +92,15 @@ int main() {
 
     printf("Result Matrix C \n");    
     for(int i = 0; i < N; i++) {
-        for(int j = 0; j < M; j++){
-            printf("R[%d][%d] = %f \n", i,j, mc[i * M + j]);
+        for(int j = 0; j < N; j++){
+            printf("R[%d][%d] = %f \n", i,j, mc[i * N + j]);
         }
     }
     
     return 0;
 }
+
+
+// Dúvida final, esse problema pode ser resolvido mais eficientemente se diminuirmos o dominio ?
+// - Se em vez de cada threads computar a multiplicação de vetores, fizemos mais threads, e cada
+// uma delas agora vai multiplicar valores, e acumular ? Removendo a execução do laço
