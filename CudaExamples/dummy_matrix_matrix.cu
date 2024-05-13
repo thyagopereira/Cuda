@@ -1,5 +1,4 @@
 #include "cuda_runtime.h"
-#include <cuda.h>
 #include <stdio.h>
 #include<unistd.h>
 
@@ -16,12 +15,8 @@ const int M = 32 ; // Numero de colunas da matriz
 // R = M X N 
 __global__ void multiplica(float* ma, float* mb, float* mc, int width) {
 
-
-    printf("CUDA IS RUNNING"); //  Nao printa pq ? --- tem tempo sleep(20);
     int row = blockIdx.y*blockDim.y + threadIdx.y;
     int col = blockIdx.x*blockDim.x + threadIdx.x;
-
-    printf("%d, %d", row, col);
 
     // Isso torna possível trabalhar apenas matrizes quadradas? 
     if((row < width) && (col <  width)){
@@ -32,7 +27,6 @@ __global__ void multiplica(float* ma, float* mb, float* mc, int width) {
         }
 
         mc[row*width + col] = Pvalue;
-        printf("%f \n", mc[row*width + col]);
     }
 }
 
@@ -66,10 +60,18 @@ int main() {
     cudaMemcpy(dmb, mb, size, cudaMemcpyHostToDevice);
 
     multiplica<<<32, 32>>>(dma, dmb, dmc, N);
-
-
-    cudaMemcpy(mc, dmc, size, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
+    cudaMemcpy(mc, dmc, size, cudaMemcpyDeviceToHost);
+    
+
+    cudaError_t error = cudaGetLastError();
+    if(error != cudaSuccess)
+    {
+      // print the CUDA error message and exit
+      printf("CUDA error: %s\n", cudaGetErrorString(error));
+      exit(-1);
+    }
+
     cudaFree(dma); cudaFree(dmb); cudaFree(dmc);
 
     for(int i = 0; i < N; i++) {
