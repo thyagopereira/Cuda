@@ -30,6 +30,7 @@ __global__ void k_Particle_non_coalescent(st_particle *d_vet, int size){
     int i = blockDim.x * blockIdx.x + threadIdx.x; // Posição da thread no bloco
     
     if(i < size){
+       
         d_vet[i].p.x = d_vet[i].p.x + d_vet[i].v.x * d_vet[i].a.x;
         d_vet[i].p.y = d_vet[i].p.y + d_vet[i].v.y * d_vet[i].a.y;
         d_vet[i].p.z = d_vet[i].p.z + d_vet[i].v.z * d_vet[i].a.z;
@@ -52,7 +53,7 @@ __global__ void k_Particle_coalescent_data( float* d_px, float* d_py, float* d_p
 
 }
 
-void coalescent_data(){
+float coalescent_data(){
     cudaDeviceReset();
 
     int size = sizeof(float) * N;
@@ -96,9 +97,9 @@ void coalescent_data(){
 
     cudaEvent_t start, stop; cudaEventCreate (&start); cudaEventCreate (&stop);
     cudaEventRecord(start, 0);
-    k_Particle_coalescent_data<<<blocksPerGrid, threadsPerBlock>>>( m_px, m_py, m_pz,
-                                                                    m_vx, m_vy, m_vz,
-                                                                    m_ax, m_ay, m_az );
+    k_Particle_coalescent_data<<<blocksPerGrid, threadsPerBlock>>>( d_px, d_py, d_pz,
+                                                                    d_vx, d_vy, d_vz,
+                                                                    d_ax, d_ay, d_az );
     cudaDeviceSynchronize();
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
@@ -121,8 +122,8 @@ void coalescent_data(){
     cudaFree(d_px); cudaFree(d_py); cudaFree(d_pz); cudaFree(d_vx); cudaFree(d_vy); cudaFree(d_vz);
     cudaFree(d_ax); cudaFree(d_ay); cudaFree(d_az);
 
-    printf("NON COALESCENT DATA");
-    printf("Total GPU Time no coalescent data: %3.3f ms \n", elapsedTime);
+    printf("COALESCENT DATA \n");
+    printf("Total GPU Time coalescent data: %3.3f ms \n", elapsedTime);
     printf("------------------- COALESCENT DATA -------------------- \n");
 
     for(int i = 0; i < N ; i++){
@@ -130,9 +131,11 @@ void coalescent_data(){
     }
 
     printf("---------------------------------------------------------- \n");
+
+    return elapsedTime;
 }
 
-void non_coalescent_data(){
+float non_coalescent_data(){
     cudaDeviceReset();
 
     int stSize = sizeof(struct st_particle);
@@ -142,7 +145,7 @@ void non_coalescent_data(){
     // Preenchendo o vetor;
     for(int i = 0; i < N; i++){
         h_vet[i].p.x = 0; h_vet[i].p.y = 0; h_vet[i].p.z = 0; 
-        h_vet[i].v.x = 10; h_vet[i].v.y = 10; h_vet[i].a.y = 5;  
+        h_vet[i].v.x = 10; h_vet[i].v.y = 10; h_vet[i].v.z = 5;  
         h_vet[i].a.x = 10; h_vet[i].a.y = 10; h_vet[i].a.z = 2;
     }
 
@@ -180,7 +183,7 @@ void non_coalescent_data(){
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaEventDestroy(start); cudaEventDestroy(stop); 
 
-    cudaMemcpy(h_vet, d_vet, stSize, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_vet, d_vet, stSize * N, cudaMemcpyDeviceToHost);
     cudaFree(d_vet);
 
     printf("NON COALESCENT DATA \n");
@@ -191,11 +194,17 @@ void non_coalescent_data(){
         printf("p.x = %f , p.y = %f , p.z = %f \n", h_vet[i].p.x, h_vet[i].p.y, h_vet[i].p.z);
     }
     printf("---------------------------------------------------------- \n");
+
+    return elapsedTime;
 }
 
 int main(){
-    non_coalescent_data();
-    // coalescent_data();
+    float nc = non_coalescent_data();
+    float c = coalescent_data();
+    float diff = nc - c ;
+
+    printf("Total GPU Time, Coalescent data is %3.3f ms faster.", diff); 
+
     return 0;
 }
 
